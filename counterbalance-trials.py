@@ -45,6 +45,7 @@ for subj in range(n_listeners):
     # save
     snr_assignments.extend(this_snrs)
 design_matrix['snr'] = snr_assignments
+design_matrix['snr'] = design_matrix['snr'].map(lambda x: '{:+.1f}'.format(x))
 
 # assign talkers to sentence/SNR pairings. Start at a different point in the
 # talker sequence **for each tiling of the talker list** (avoids problems that
@@ -77,7 +78,12 @@ assert all(design_matrix.groupby(['listener', 'talker', 'snr']).count().nunique(
 #  sentences and 29 reps of the remaining sentences.  So if any of the above
 # "assert" statements failed, try changing the "== 1" to "<= 2". If that works,
 # then remove the "assert all" and ".nunique()..." parts of each line, and make
-# sure the .min() and .max() of each line are within 1 of each other.
+# sure the .min() and .max() of each count are within 1 of each other.
+
+# add a filename column
+design_matrix['filename'] = (design_matrix[['talker', 'sentence',
+                                            'snr']].apply('_'.join, axis=1) +
+                             '.wav')
 
 # now randomize presentation order, then re-sort by listener
 design_matrix = design_matrix.sample(frac=1, random_state=rand)
