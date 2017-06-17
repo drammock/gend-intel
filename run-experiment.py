@@ -3,10 +3,10 @@
 
 """
 ===============================================================================
-Script 'counterbalance-trials.py'
+Script 'run-experiment.py'
 ===============================================================================
 
-This script counterbalances trial parameters.
+This script plays stimuli and records verbal responses.
 """
 # @author: drmccloy
 # Created on Thu Jun 15 13:38:22 2017
