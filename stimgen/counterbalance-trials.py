@@ -15,12 +15,13 @@ This script counterbalances trial parameters.
 import yaml
 import numpy as np
 import pandas as pd
+import os.path as op
 
 # set random seed
 rand = np.random.RandomState(seed=15485863)  # the one millionth prime
 
 # load external parameter file
-paramfile = 'params.yaml'
+paramfile = op.join('..', 'params.yaml')
 with open(paramfile, 'r') as pf:
     params = yaml.load(pf)
     snrs = params['snrs']
@@ -94,19 +95,20 @@ missing_talkers = missing_trials['talker'].values.astype(str)
 # (i.e., if some sentences are missing for >1 talker)
 # NOTE: value_counts() defaults to descending order, which is in our favor here
 missing_talker_counts = missing_trials['talker'].value_counts()
-shuffled_talkers = np.full_like(missing_talkers, '')
 converged, iteration, max_iter = False, 1, 1000
 while iteration < max_iter and not converged:
+    shuffled_talkers = np.full_like(missing_talkers, '')
     for talker, count in missing_talker_counts.iteritems():
         legal_indices = np.where(missing_talkers != talker)[0]
         empty_indices = np.where(shuffled_talkers == '')[0]
         available_indices = np.intersect1d(legal_indices, empty_indices)
         try:
             ixs = rand.choice(available_indices, count, replace=False)
-            shuffled_talkers[ixs] = talker
-            converged = True
         except ValueError:
             iteration += 1
+            break
+        shuffled_talkers[ixs] = talker
+        converged = True
 success = ['resolved', 'could not resolve'][int(iteration == max_iter)]
 plural = ['', 's'][int(iteration > 1)]
 message = '{} missing sentences in {} iteration{}.'.format(success, iteration,
@@ -131,4 +133,4 @@ design_matrix.sort_values(by='listener', inplace=True)
 design_matrix.reset_index(drop=True, inplace=True)
 
 # write out design matrix
-design_matrix.to_csv('design-matrix.csv', index=False)
+design_matrix.to_csv(op.join('..', 'design-matrix.csv'), index=False)

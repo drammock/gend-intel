@@ -1,2 +1,7 @@
 # directories
 SNR-examples
+responses
+
+# files
+stimgen/find-missing.py
+stimgen/available-sentences.csv
