@@ -120,9 +120,7 @@ with ExperimentController(**ec_params) as ec:
             ec.screen_prompt(msg['end_block'].format(*fmt))
 
         # load the wav file
-        #wav, fs = read_wav(op.join(stim_dir, stim))
-        wav, fs = read_wav(op.join('test-stimuli', 'NWF002_03-10.wav'))
-        # TODO: fix previous two lines when done testing
+        wav, fs = read_wav(op.join(stim_dir, stim))
         dur = wav.shape[-1] / fs
         ec.load_buffer(wav)
 
