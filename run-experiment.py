@@ -36,13 +36,15 @@ n_blocks = int(np.ceil(len(sentences) / block_len))
 # load design matrices
 design_matrix = pd.read_csv('design-matrix.csv', header=0)
 training_stimuli = pd.read_csv('training-list.csv', header=0)
+n_training_stims = training_stimuli.shape[0]
+# training stimuli will have negative trial numbers
+training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 
 # experiment setup
 stim_dir = 'stimuli'
 train_dir = op.join(stim_dir, 'training')
 live_keys = ['space']
-stimuli = glob(op.join(stim_dir, '*.wav'))
-sd.default.channels, sd.default.samplerate = (1, 44100)
+sd.default.channels, sd.default.samplerate = 1, 44100
 ec_params = dict(exp_name='gend-intel', audio_controller='pyglet',
                  response_device='keyboard', stim_fs=44100, stim_rms=0.01,
                  check_rms=None, output_dir='logs', force_quit=['q'],
@@ -58,7 +60,7 @@ msg = {'first_trial': ('Start at which trial? (leave blank and push ENTER to '
                    'recording to work, this window must disappear during the '
                    'response so the terminal can catch the Ctrl+C keystroke). '
                    '\n\nTalk to the subject, then press "{0}{2}{1}" when they '
-                   'are ready to begin the training block.'),
+                   'are ready to begin the {4} block.'),
        'end_training': ('End of training.\n\nTalk to the subject, then press '
                         '"{0}{2}{1}" when they are ready to start the first '
                         'real trial.'),
@@ -81,39 +83,43 @@ with ExperimentController(**ec_params) as ec:
     # load stimulus list for this listener
     stimuli = design_matrix.loc[design_matrix['listener'] == int(ec.session),
                                 ['filename']]
-    n_stim = len(stimuli)
+    n_stim = stimuli.shape[0]
+    stimuli['trial'] = np.arange(n_stim)
     if n_stim != 180:
         raise RuntimeError('{} stimuli loaded (should be 180)'.format(n_stim))
+
+    # get starting trial number
+    first_trial = get_keyboard_input(msg['first_trial'], default=0,
+                                     out_type=int, valid=range(n_stim))
+    stimuli = stimuli.loc[stimuli['trial'] >= first_trial, :]
 
     # run training?
     run_training = get_keyboard_input('Run training [Y/n]?', default='y',
                                       out_type=str, valid=['y', 'Y', 'n', 'N'])
     run_training = run_training in ['y', 'Y']
     if run_training:  # prepend training stimuli
-        n_training_stims = training_stimuli.shape[0]
-        all_stimuli = pd.concat([training_stimuli, stimuli], ignore_index=True)
-
-    # get starting trial number
-    first_trial = get_keyboard_input(msg['first_trial'], default=0,
-                                     out_type=int, valid=range(n_stim))
+        stimuli = pd.concat([training_stimuli, stimuli], ignore_index=True)
+    # convert dataframe index to be the trial number
+    stimuli.set_index(['trial'], inplace=True)
 
     # experimenter instructions
     ec.set_visible(True)
-    fmt = [green, white, live_keys[0], ec._response_handler.force_quit_keys[0]]
+    fmt = [green, white, live_keys[0], ec._response_handler.force_quit_keys[0],
+           ['experiment', 'training'][int(run_training)]]
     prompt = msg['welcome'].format(*fmt)
     ec.screen_prompt(prompt, live_keys=live_keys, font_size=18, attr=True)
     # put a reminder in the terminal window
     print('Press Ctrl+C when listener has finished responding.')
 
     # loop over trials
-    for ix, stim in all_stimuli.itertuples():
+    for ix, stim in stimuli.itertuples():
         # are we done with training?
-        if run_training and ix == n_training_stims:
+        if run_training and ix == first_trial:
             fmt = [green, white, live_keys[0]]
             ec.screen_prompt(msg['end_training'].format(*fmt))
 
         # break between blocks
-        trial_num = ix - n_training_stims if run_training else ix
+        trial_num = ix - first_trial
         if trial_num > 0 and trial_num % block_len == 0:
             block_num = trial_num // block_len
             fmt = [block_num, n_blocks, live_keys[0]]
@@ -126,15 +132,14 @@ with ExperimentController(**ec_params) as ec:
 
         # identify trial and save to logfile
         talker, sentence, snr = stim[:6], stim[7:12], stim[13:15]
-        trial_id_parts = ['trial:', str(trial_num), 'talker:', talker,
+        trial_id_parts = ['trial:', str(ix), 'talker:', talker,
                           'sentence:', sentence, 'SNR:', snr]
         ec.identify_trial(ec_id=' '.join(trial_id_parts), ttl_id=[])
 
         # show current stim info and play stimulus
         fmt = [green, white] + trial_id_parts
-        if trial_num < 0:
+        if ix < 0:
             fmt[2] = 'training:'
-            fmt[3] = fmt[3] + n_training_stims
         ec.screen_text(msg['now_playing'].format(*fmt))
         ec.start_stimulus()
         # wait a little less than stim duration, to make sure buffer is open
@@ -143,7 +148,7 @@ with ExperimentController(**ec_params) as ec:
 
         # save the listener response
         ec.set_visible(False)
-        tn = 'training' if trial_num < 0 else '{:03}'.format(trial_num)
+        tn = 'training' if ix < 0 else '{:03}'.format(ix)
         resp_file = op.join(resp_dir, '{}_{}.wav'.format(tn, sentence))
         try:
             q = queue.Queue()
@@ -152,15 +157,16 @@ with ExperimentController(**ec_params) as ec:
                     print(status, file=sys.stderr)
                 q.put(data_in.copy())
             sf_args = dict(mode='x', samplerate=44100, channels=1)
-            with sf.SoundFile(resp_file, **sf_args) as sfile:
-                with sd.InputStream(callback=sd_callback):
-                    while True:
-                        sfile.write(q.get())
+            with sf.SoundFile(resp_file, **sf_args) as sfile, \
+                    sd.InputStream(callback=sd_callback):
+                while True:
+                    sfile.write(q.get())
         except KeyboardInterrupt:
             pass
 
         # finalize trial and restore experimenter interface
         ec.trial_ok()
         ec.set_visible(True)
+    # end experiment
     ec.screen_prompt(msg['finished'].format(green, white, live_keys[0]),
                      max_wait=10, live_keys=live_keys)
