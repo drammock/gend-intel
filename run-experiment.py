@@ -44,7 +44,11 @@ training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 stim_dir = 'stimuli'
 train_dir = op.join(stim_dir, 'training')
 live_keys = ['space']
-sd.default.channels, sd.default.samplerate = 1, 44100
+sd.default.channels = 1
+sd.default.samplerate = 44100
+sd.default.dtype = 'int24'
+soundfile_args = dict(mode='x', samplerate=sd.default.samplerate,
+                      channels=sd.default.channels, subtype='PCM_24')
 ec_params = dict(exp_name='gend-intel', audio_controller='pyglet',
                  response_device='keyboard', stim_fs=44100, stim_rms=0.01,
                  check_rms=None, output_dir='logs', force_quit=['q'],
@@ -156,9 +160,8 @@ with ExperimentController(**ec_params) as ec:
                 if status:
                     print(status, file=sys.stderr)
                 q.put(data_in.copy())
-            sf_args = dict(mode='x', samplerate=44100, channels=1)
             with sf.SoundFile(resp_file, **sf_args) as sfile, \
-                    sd.InputStream(callback=sd_callback):
+                    sd.RawInputStream(callback=sd_callback):
                 while True:
                     sfile.write(q.get())
         except KeyboardInterrupt:
