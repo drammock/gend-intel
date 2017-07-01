@@ -160,7 +160,7 @@ with ExperimentController(**ec_params) as ec:
                 if status:
                     print(status, file=sys.stderr)
                 q.put(data_in.copy())
-            with sf.SoundFile(resp_file, **sf_args) as sfile, \
+            with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
                     sd.RawInputStream(callback=sd_callback):
                 while True:
                     sfile.write(q.get())
