@@ -130,7 +130,8 @@ with ExperimentController(**ec_params) as ec:
             ec.screen_prompt(msg['end_block'].format(*fmt))
 
         # load the wav file
-        wav, fs = read_wav(op.join(stim_dir, stim))
+        dir = train_dir if ix < 0 else stim_dir
+        wav, fs = read_wav(op.join(dir, stim))
         dur = wav.shape[-1] / fs
         ec.load_buffer(wav)
 
