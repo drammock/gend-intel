@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 import soundfile as sf
+from wavio import _wav2array
 from glob import glob
 from expyfun import ExperimentController, get_keyboard_input
 from expyfun.stimuli import read_wav
@@ -40,15 +41,30 @@ n_training_stims = training_stimuli.shape[0]
 # training stimuli will have negative trial numbers
 training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 
+# where possible, write the wav file with the same params as the audio input
+samplerate = 44100
+sampwidth = 3  # this indicates that the incoming audio is 3-byte (AKA, 24-bit)
+channels = 1
+
+# input audio settings. Our external analog-to-digital box (M-Audio FastTrack
+# Ultra 8R) can *only* provide 24-bit audio. Luckily, the sounddevice module
+# has a setting for this that bypasses NumPy (which can't handle 24-bit dtype).
+sd.default.dtype = 'int24'
+sd.default.channels = channels
+sd.default.samplerate = samplerate
+
+# output audio settings. The soundfile module uses NumPy internally, so between
+# capturing incoming samples (with sounddevice) and writing them to disk (with
+# soundfile), we convert from 24-bit audio samples into 32-bit integers using
+# wavio._wav2array. Since we have to do this, we might as well write out the
+# WAV file as 32-bit integers to avoid a second dtype conversion.
+soundfile_args = dict(mode='x', samplerate=samplerate, channels=channels,
+                      format='WAV', subtype='PCM_32')
+
 # experiment setup
 stim_dir = 'stimuli'
 train_dir = op.join(stim_dir, 'training')
 live_keys = ['space']
-sd.default.channels = 1
-sd.default.samplerate = 44100
-sd.default.dtype = 'int24'
-soundfile_args = dict(mode='x', samplerate=sd.default.samplerate,
-                      channels=sd.default.channels, subtype='PCM_24')
 ec_params = dict(exp_name='gend-intel', audio_controller='pyglet',
                  response_device='keyboard', stim_fs=44100, stim_rms=0.01,
                  check_rms=None, output_dir='logs', force_quit=['q'],
@@ -160,7 +176,8 @@ with ExperimentController(**ec_params) as ec:
             def sd_callback(data_in, frames, time, status):
                 if status:
                     print(status, file=sys.stderr)
-                q.put(data_in.copy())
+                data = _wav2array(channels, sampwidth, data_in)
+                q.put(data)
             with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
                     sd.RawInputStream(callback=sd_callback):
                 while True:
