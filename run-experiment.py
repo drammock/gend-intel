@@ -21,7 +21,6 @@ import numpy as np
 import pandas as pd
 import sounddevice as sd
 import soundfile as sf
-from wavio import _wav2array
 from glob import glob
 from expyfun import ExperimentController, get_keyboard_input
 from expyfun.stimuli import read_wav
