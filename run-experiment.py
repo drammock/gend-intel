@@ -26,6 +26,19 @@ from glob import glob
 from expyfun import ExperimentController, get_keyboard_input
 from expyfun.stimuli import read_wav
 
+
+def pad_24_to_32_bits(data, channels):
+    n_samp, remainder = divmod(len(data), channels * 3)
+    if remainder > 0:
+        raise ValueError('The length of data is not a multiple of '
+                         'channels * sampwidth.')
+    a = np.zeros((n_samp, channels, 4), dtype=np.uint8)
+    raw_bytes = np.fromstring(data, dtype=np.uint8)
+    a[:, :, 1:] = raw_bytes.reshape(-1, channels, 3)
+    result = a.view('<i4').reshape(a.shape[:-1])
+    return result
+
+
 # load external parameter file
 paramfile = 'params.yaml'
 with open(paramfile, 'r') as pf:
@@ -43,7 +56,7 @@ training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 
 # where possible, write the wav file with the same params as the audio input
 samplerate = 44100
-sampwidth = 3  # this indicates that the incoming audio is 3-byte (AKA, 24-bit)
+# sampwidth = 3  # this indicates that the incoming audio is 3-byte (AKA, 24-bit)
 channels = 1
 
 # input audio settings. Our external analog-to-digital box (M-Audio FastTrack
@@ -176,7 +189,7 @@ with ExperimentController(**ec_params) as ec:
             def sd_callback(data_in, frames, time, status):
                 if status:
                     print(status, file=sys.stderr)
-                data = _wav2array(channels, sampwidth, data_in)
+                data = pad_24_to_32_bits(data_in, channels)
                 q.put(data)
             with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
                     sd.RawInputStream(callback=sd_callback):
