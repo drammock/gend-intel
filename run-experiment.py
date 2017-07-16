@@ -61,8 +61,11 @@ channels = 1
 # input audio settings. Our external analog-to-digital box (M-Audio FastTrack
 # Ultra 8R) can *only* provide 24-bit audio. Luckily, the sounddevice module
 # has a setting for this that bypasses NumPy (which can't handle 24-bit dtype).
+# Also, since our microphone signal comes in on channel 5, we need to pull in
+# data from the first 5 channels (there doesn't seem to be a way to pull in
+# a single channel unless it's channel 1).
 sd.default.dtype = 'int24'
-sd.default.channels = channels
+sd.default.channels = 5
 sd.default.samplerate = samplerate
 
 # output audio settings. The soundfile module uses NumPy internally, so between
@@ -188,7 +191,9 @@ with ExperimentController(**ec_params) as ec:
             def sd_callback(data_in, frames, time, status):
                 if status:
                     print(status, file=sys.stderr)
-                data = pad_24_to_32_bits(data_in, channels)
+                # keep only the last channel (should be channel 5, which
+                # is where our microphone signal comes in)
+                data = pad_24_to_32_bits(data_in[:, -1], channels)
                 q.put(data)
             with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
                     sd.RawInputStream(callback=sd_callback):
