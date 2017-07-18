@@ -56,7 +56,7 @@ training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 # where possible, write the wav file with the same params as the audio input
 samplerate = 44100
 # sampwidth = 3  # this indicates that the incoming audio is 3-byte (AKA, 24-bit)
-channels = 1
+channels = 5
 
 # input audio settings. Our external analog-to-digital box (M-Audio FastTrack
 # Ultra 8R) can *only* provide 24-bit audio. Luckily, the sounddevice module
@@ -65,7 +65,7 @@ channels = 1
 # data from the first 5 channels (there doesn't seem to be a way to pull in
 # a single channel unless it's channel 1).
 sd.default.dtype = 'int24'
-sd.default.channels = 5
+sd.default.channels = channels
 sd.default.samplerate = samplerate
 
 # output audio settings. The soundfile module uses NumPy internally, so between
@@ -191,9 +191,10 @@ with ExperimentController(**ec_params) as ec:
             def sd_callback(data_in, frames, time, status):
                 if status:
                     print(status, file=sys.stderr)
-                # keep only the last channel (should be channel 5, which
-                # is where our microphone signal comes in)
-                data = pad_24_to_32_bits(data_in[:, -1], channels)
+                # Ideally I would keep only channel 5, which is where our mic
+                # signal comes in; data_in[:, 4] doesn't work since it's a
+                # buffer not an array...
+                data = pad_24_to_32_bits(data_in, channels)
                 q.put(data)
             with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
                     sd.RawInputStream(callback=sd_callback):
