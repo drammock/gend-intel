@@ -25,19 +25,6 @@ from glob import glob
 from expyfun import ExperimentController, get_keyboard_input
 from expyfun.stimuli import read_wav
 
-
-def pad_24_to_32_bits(data, channels):
-    n_samp, remainder = divmod(len(data), channels * 3)
-    if remainder > 0:
-        raise ValueError('The length of data is not a multiple of '
-                         'channels * sampwidth.')
-    a = np.zeros((n_samp, channels, 4), dtype=np.uint8)
-    raw_bytes = np.fromstring(data, dtype=np.uint8)
-    a[:, :, 1:] = raw_bytes.reshape(-1, channels, 3)
-    result = a.view('<i4').reshape(a.shape[:-1])
-    return result
-
-
 # load external parameter file
 paramfile = 'params.yaml'
 with open(paramfile, 'r') as pf:
@@ -53,26 +40,23 @@ n_training_stims = training_stimuli.shape[0]
 # training stimuli will have negative trial numbers
 training_stimuli['trial'] = np.arange(n_training_stims) - n_training_stims
 
-# where possible, write the wav file with the same params as the audio input
+# params that apply to both input stream and wavfile output
 samplerate = 44100
-# sampwidth = 3  # this indicates that the incoming audio is 3-byte (AKA, 24-bit)
-channels = 5
+channels = 1
 
 # input audio settings. Our external analog-to-digital box (M-Audio FastTrack
-# Ultra 8R) can *only* provide 24-bit audio. Luckily, the sounddevice module
-# has a setting for this that bypasses NumPy (which can't handle 24-bit dtype).
-# Also, since our microphone signal comes in on channel 5, we need to pull in
-# data from the first 5 channels (there doesn't seem to be a way to pull in
-# a single channel unless it's channel 1).
-sd.default.dtype = 'int24'
+# Ultra 8R) can *only* provide 24-bit audio. The backend will (allegedly)
+# automatically pad with a zero byte if we specify the dtype as 'int32'. Also,
+# since our microphone signal comes in on channel 5, we need to specify this in
+# the "extra settings" to the input stream.
+sd.default.dtype = 'int32'
 sd.default.channels = channels
 sd.default.samplerate = samplerate
+ch_5 = sd.CoreAudioSettings(channel_map=[4])  # zero-indexed
 
-# output audio settings. The soundfile module uses NumPy internally, so between
-# capturing incoming samples (with sounddevice) and writing them to disk (with
-# soundfile), we convert from 24-bit audio samples into 32-bit integers using
-# wavio._wav2array. Since we have to do this, we might as well write out the
-# WAV file as 32-bit integers to avoid a second dtype conversion.
+# output audio settings. Since the samples come in as 24-bit signed ints that
+# get padded to 32-bit signed ints by the backend during acquisition, we might
+# as well write out the WAV file as 32-bit ints to avoid a dtype conversion.
 soundfile_args = dict(mode='x', samplerate=samplerate, channels=channels,
                       format='WAV', subtype='PCM_32')
 
@@ -191,13 +175,9 @@ with ExperimentController(**ec_params) as ec:
             def sd_callback(data_in, frames, time, status):
                 if status:
                     print(status, file=sys.stderr)
-                # Ideally I would keep only channel 5, which is where our mic
-                # signal comes in; data_in[:, 4] doesn't work since it's a
-                # buffer not an array...
-                data = pad_24_to_32_bits(data_in, channels)
-                q.put(data)
+                q.put(data_in.copy())
             with sf.SoundFile(resp_file, **soundfile_args) as sfile, \
-                    sd.RawInputStream(callback=sd_callback):
+                    sd.InputStream(callback=sd_callback, extra_settings=ch_5):
                 while True:
                     sfile.write(q.get())
         except KeyboardInterrupt:
