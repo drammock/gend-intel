@@ -45,7 +45,7 @@ samplerate = 44100
 channels = 1
 
 # input audio settings. Our external analog-to-digital box (M-Audio FastTrack
-# Ultra 8R) can *only* provide 24-bit audio. The backend will (allegedly)
+# Ultra 8R) can *only* provide 24-bit audio. Luckily the backend will
 # automatically pad with a zero byte if we specify the dtype as 'int32'. Also,
 # since our microphone signal comes in on channel 5, we need to specify this in
 # the "extra settings" to the input stream.
@@ -55,8 +55,8 @@ sd.default.samplerate = samplerate
 ch_5 = sd.CoreAudioSettings(channel_map=[4])  # zero-indexed
 
 # output audio settings. Since the samples come in as 24-bit signed ints that
-# get padded to 32-bit signed ints by the backend during acquisition, we might
-# as well write out the WAV file as 32-bit ints to avoid a dtype conversion.
+# get padded to 32-bit signed ints during acquisition, we might as well
+# write out the WAV file as 32-bit ints to avoid an extra dtype conversion.
 soundfile_args = dict(mode='x', samplerate=samplerate, channels=channels,
                       format='WAV', subtype='PCM_32')
 
