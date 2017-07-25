@@ -24,7 +24,7 @@ from expyfun.stimuli import read_wav
 noise, fs = read_wav('whitenoise_16bit_44100Hz_70dB.wav')
 dur = noise.shape[-1] / fs
 
-ec_params = dict(exp_name='test-noise', participant='noise', session=0,
+ec_params = dict(exp_name='test-noise', participant='noise', session='0',
                  audio_controller='pyglet', response_device='keyboard',
                  stim_fs=44100, stim_rms=0.01, check_rms=None, output_dir=None,
                  force_quit=['q'], full_screen=False, window_size=(800, 600),
