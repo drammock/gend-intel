@@ -12,13 +12,8 @@ This script plays noise for headphone calibration purposes.
 # Created on Tue Jul 25 14:35:40 PDT 2017
 # License: BSD (3-clause)
 
-import os.path as op
-import numpy as np
-import sounddevice as sd
-import soundfile as sf
 from expyfun import ExperimentController, get_keyboard_input
 from expyfun.stimuli import read_wav
-
 
 # load noise file
 noise, fs = read_wav('whitenoise_16bit_44100Hz_70dB.wav')
