@@ -164,7 +164,7 @@ with ExperimentController(**ec_params) as ec:
         ec.start_stimulus()
         # wait a little less than stim duration, to make sure buffer is open
         # when listener starts responding
-        ec.wait_secs(dur - 0.1)
+        ec.wait_secs(dur - 0.5)
 
         # save the listener response
         ec.set_visible(False)
