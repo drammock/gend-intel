@@ -71,15 +71,14 @@ print(design_matrix.loc[(design_matrix['sentence'] == '01-07') &
 # each sentence should happen only once per listener
 assert all(design_matrix.groupby(['listener', 'sentence']).count() == 1)
 # does each combination occur the same number of times?
-assert all(design_matrix.groupby(['listener', 'snr']).count().nunique() == 1)
-assert all(design_matrix.groupby(['talker', 'snr']).count().nunique() == 1)
-assert all(design_matrix.groupby(['listener', 'talker']).count().nunique() == 1)
-assert all(design_matrix.groupby(['listener', 'talker', 'snr']).count().nunique() == 1)
-# It is possible that the best we could do is to have, say, 30 reps of some
-#  sentences and 29 reps of the remaining sentences.  So if any of the above
-# "assert" statements failed, try changing the "== 1" to "<= 2". If that works,
-# then remove the "assert all" and ".nunique()..." parts of each line, and make
-# sure the .min() and .max() of each count are within 1 of each other.
+groupings = [['listener', 'snr'], ['talker', 'snr'], ['listener', 'talker'],
+             ['listener', 'talker', 'snr']]
+ungrouped = ['talker', 'listener', 'snr', 'sentence']
+for grp, ungrp in zip(groupings, ungrouped):
+    print('Number of repetitions of each {} combination, per {}:'
+          ''.format('-'.join(grp), ungrp))
+    n = design_matrix.groupby(grp).count()[ungrp].unique().tolist()
+    print(', '.join([str(nn) for nn in n]))
 
 # check proposal against the list of missing sentence / talker combinations
 stims = (design_matrix['talker'] + '_' +

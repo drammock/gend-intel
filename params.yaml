@@ -1,6 +1,6 @@
 n_listeners: 32  # more than we need, in case there are dismissals
 
-snrs: [-3, -2, -1, 0, 1, 2]  # [-3.0, -1.8, -0.6, 0.6, 1.8, 3.0]
+snrs: [-4, -2, 0, 2]
 
 block_len: 30
 
