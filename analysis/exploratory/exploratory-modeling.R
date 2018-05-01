@@ -37,10 +37,11 @@ box <- geom_boxplot(outlier.shape=NA, coef=0, lwd=0.5, fill=NA)
 boxpts_jitter <- geom_jitter(size=2.5, alpha=0.5, width=0.03)
 boxpts_dodge <- geom_jitter(size=2.5, alpha=0.5, position=position_dodge(width=1.5))
 
-## y axis score
+## y axis
 yaxis_score <- list(ylab("Mean score"), ylim(0, 1))
-## y axis slope
-yaxis_slope <- list(ylab("Slope (score ~ SNR)"), ylim(0, 0.11))
+yaxis_slope <- list(ylab("Slope (score ~ SNR)"),
+                    scale_y_continuous(limits=c(0, 0.1), breaks=seq(0, 0.1, 0.02)))
+
 ## x axis SNR
 db_labeler <- function(x) paste(x, "dB", sep=" ")
 xaxis_snr <- list(xlab("SNR"), scale_x_continuous(labels=db_labeler,
@@ -52,14 +53,15 @@ xaxis_sent <- list(xlab("Sentence"), scale_x_discrete(limits=sent_order),
                    theme(axis.text.x=element_text(angle=90, vjust=0.5)))
 ## x axis gender
 xaxis_gend <- list(xlab("Talker gender"))
-## legend gender
+
+## legends
 legend_gend <- list(labs(colour="Talker\ngender", fill="Talker\ngender"))
 legend_aud <- list(labs(colour="AuD\nstudent", fill="AuD\nstudent"))
 legend_snr <- list(labs(colour="SNR"), guides(colour=guide_legend(reverse=TRUE)))
 
-## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-## SANITY CHECK 1: MEAN SCORE BY LISTENER, BY SNR  ##
-## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ## ## ##
+##  MEAN SCORE BY LISTENER, BY SNR  ##
+## ## ## ## ## ## ## ## ## ## ## ## ##
 scores %>%
     group_by(snr, listener) %>%
     summarise(score=mean(score)) %>%
@@ -72,9 +74,9 @@ scores %>%
 ggsave("1a-listener-by-snr.pdf", fig1a, device=cairo_pdf, width=6, height=5)
 
 
-## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
-## SANITY CHECK 1: MEAN SCORE BY TALKER, BY SNR ##
-## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ## ##
+## MEAN SCORE BY TALKER, BY SNR  ##
+## ## ## ## ## ## ## ## ## ## ## ##
 scores %>%
     group_by(snr, talker) %>%
     summarise(score=mean(score)) %>%
@@ -153,11 +155,15 @@ scores %>%
     group_by(snr, talker) %>%
     ggplot(mapping=aes(x=snr, y=score, group=talker, colour=talker_gend)) +
     geom_smooth(method='lm', lwd=0.5, se=FALSE) +
-    labs(title="Score ~ SNR, linear fit for each listener") +
+    labs(title="Score ~ SNR, linear fit for each talker") +
     theme_bw() + yaxis_score + xaxis_snr + legend_gend -> fig5a
-ggsave("5a-snr-by-talkergender.pdf", fig5a, device=cairo_pdf,
+ggsave("5a-snr-fits-by-talker.pdf", fig5a, device=cairo_pdf,
        width=5, height=5)
 
+
+## ## ## ## ## ## ## ## ## ## ##
+## SNR SLOPE BY TALKER GENDER ##
+## ## ## ## ## ## ## ## ## ## ##
 scores %>%
     group_by(talker_gend, talker) %>%
     do(mod=lm(score ~ snr, data=.)) %>%
@@ -166,9 +172,9 @@ scores %>%
     ggplot(aes(x=talker_gend, y=slope, group=talker_gend,
                colour=talker_gend, fill=talker_gend)) +
     box + boxpts_jitter +
-    labs(title="Slope (score ~ SNR), split by talker gender") +
+    labs(title="Model slope estimates by talker") +
     theme_bw() + yaxis_slope + xaxis_gend + legend_gend -> fig5b
-ggsave("5b-snr-slope-by-talkergender.pdf", fig5b, device=cairo_pdf,
+ggsave("5b-snr-slope-by-talker.pdf", fig5b, device=cairo_pdf,
        width=5, height=5)
 
 
