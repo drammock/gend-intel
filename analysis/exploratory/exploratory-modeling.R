@@ -23,6 +23,8 @@ deviation_coding <- function(x, levs=NULL) {
 
 ## load data
 scores <- read.csv(file.path("..", "scores.csv"), row.names=1, as.is=TRUE)
+scores <- scores %>% mutate(listener_gend=substr(listener, 3, 3))
+scores$listener_gend <- deviation_coding(scores$listener_gend, c("M", "F"))
 scores$talker_gend <- deviation_coding(scores$talker_gend, c("M", "F"))
 
 # mark listeners with audiology training (=some exposure to IEEE sentences)
@@ -216,3 +218,42 @@ coefplot2(fullmod_ntre, intercept=TRUE, add=TRUE, col='red', offset=0.1)
 dev.off()
 
 save(scores, nullmod, fullmod, fullmod_ntre, file="data-and-models.Rdata")
+
+
+## ## ## ## ## ##
+## SIMULATIONS ##
+## ## ## ## ## ##
+
+n_iter <- 1e3
+iterations <- seq_len(n_iter)
+talkers <- scores %>% select(talker) %>% unique() %>% unlist(use.names=FALSE)
+genders <- rep(c("M", "F"), length.out=length(talkers))
+
+results <- data.frame(iteration=iterations, intercept=NaN, snr=NaN,
+                      rand_gendM=NaN, interaction=NaN, snr_p=NaN,
+                      rand_gend_p=NaN, interaction_p=NaN)
+estimate_cols <- c("intercept", "snr", "rand_gendM", "interaction")
+signif_cols <- c("snr_p", "rand_gend_p", "interaction_p")
+
+for (i in iterations) {
+    rand_gend <- sample(genders, length(genders))
+    names(rand_gend) <- talkers
+    scores$rand_gend <- deviation_coding(rand_gend[scores$talker], c("M", "F"))
+    rand_mod <- glm(score ~ snr * rand_gend, data=scores,
+                    family=binomial(link="logit"))
+    results[i, estimate_cols] <- rand_mod$coefficients
+    results[i, signif_cols] <- summary(rand_mod)$coefficients[2:4, 4]
+}
+
+real_mod <- glm(score ~ snr * talker_gend, data=scores,
+                family=binomial(link="logit"))
+real_eff <- real_mod$coefficients["talker_gendF"]
+n_extreme <- sum(abs(results$rand_gendM) >= abs(real_eff))
+
+writeLines(paste(n_extreme, "/", nrow(results), "simulations showed effects",
+                 "of gender that were as extreme or more extreme than the",
+                 "effect in our data."))
+
+
+
+
