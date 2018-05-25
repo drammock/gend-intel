@@ -230,9 +230,9 @@ talkers <- scores %>% select(talker) %>% unique() %>% unlist(use.names=FALSE)
 genders <- rep(c("M", "F"), length.out=length(talkers))
 
 results <- data.frame(iteration=iterations, intercept=NaN, snr=NaN,
-                      rand_gendM=NaN, interaction=NaN, snr_p=NaN,
+                      rand_gend=NaN, interaction=NaN, snr_p=NaN,
                       rand_gend_p=NaN, interaction_p=NaN)
-estimate_cols <- c("intercept", "snr", "rand_gendM", "interaction")
+estimate_cols <- c("intercept", "snr", "rand_gend", "interaction")
 signif_cols <- c("snr_p", "rand_gend_p", "interaction_p")
 
 for (i in iterations) {
